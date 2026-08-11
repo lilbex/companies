@@ -2,7 +2,7 @@ import axios, { AxiosInstance } from 'axios';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
   (process.env.NODE_ENV === 'production' 
-    ? 'https://city-wheels-617494bca04d.herokuapp.com'
+    ? 'https://web-production-65f03.up.railway.app'
     : 'http://192.168.1.47:4000');
 
 
