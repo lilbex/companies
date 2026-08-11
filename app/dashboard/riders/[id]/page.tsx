@@ -71,7 +71,6 @@ export default function RiderDetailPage() {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'accepted': return 'bg-blue-100 text-blue-800';
-      case 'picked-up': return 'bg-purple-100 text-purple-800';
       case 'in-transit': return 'bg-orange-100 text-orange-800';
       case 'delivered': return 'bg-green-100 text-green-800';
       case 'cancelled': return 'bg-red-100 text-red-800';

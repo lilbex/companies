@@ -21,7 +21,6 @@ export default function DeliveriesPage() {
     { value: '', label: 'All Deliveries' },
     { value: 'pending', label: 'Pending' },
     { value: 'accepted', label: 'Accepted' },
-    { value: 'picked-up', label: 'Picked Up' },
     { value: 'in-transit', label: 'In Transit' },
     { value: 'delivered', label: 'Delivered' },
   ];
@@ -30,7 +29,6 @@ export default function DeliveriesPage() {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'accepted': return 'bg-blue-100 text-blue-800';
-      case 'picked-up': return 'bg-purple-100 text-purple-800';
       case 'in-transit': return 'bg-orange-100 text-orange-800';
       case 'delivered': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';

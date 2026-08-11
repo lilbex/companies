@@ -37,7 +37,6 @@ export default function DeliveryDetailPage() {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
       case 'accepted': return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'picked-up': return 'bg-purple-100 text-purple-800 border-purple-300';
       case 'in-transit': return 'bg-orange-100 text-orange-800 border-orange-300';
       case 'delivered': return 'bg-green-100 text-green-800 border-green-300';
       case 'cancelled': return 'bg-red-100 text-red-800 border-red-300';
@@ -45,7 +44,7 @@ export default function DeliveryDetailPage() {
     }
   };
 
-  const statusTimeline = ['pending', 'accepted', 'picked-up', 'in-transit', 'delivered'];
+  const statusTimeline = ['pending', 'accepted', 'in-transit', 'delivered'];
   const currentIndex = statusTimeline.indexOf(delivery?.status);
 
   return (
