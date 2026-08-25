@@ -23,6 +23,39 @@ export const managerLoginSchema = yup.object({
   password: yup.string().required('Password is required'),
 });
 
+// Same shape as managerSignupSchema — kept separate so the two account
+// types can diverge later without one edit touching the other.
+export const merchantSignupSchema = yup.object({
+  name: yup.string().required('Name is required').min(2, 'Name must be at least 2 characters'),
+  email: yup.string().email('Invalid email format').required('Email is required'),
+  phoneNumber: yup.string().required('Phone number is required').min(10, 'Phone number must be at least 10 digits'),
+  password: yup.string().required('Password is required').min(6, 'Password must be at least 6 characters'),
+  confirmPassword: yup.string()
+    .required('Please confirm your password')
+    .oneOf([yup.ref('password')], 'Passwords must match'),
+});
+
+export const merchantSetupSchema = yup.object({
+  name: yup.string().required('Restaurant name is required').min(2, 'Restaurant name must be at least 2 characters'),
+  description: yup.string(),
+  address: yup.string().required('Address is required').min(10, 'Please provide a complete address'),
+  phone: yup.string(),
+  email: yup.string().email('Invalid email format'),
+  openingHours: yup.string(),
+});
+
+export const menuCategorySchema = yup.object({
+  name: yup.string().required('Category name is required'),
+});
+
+export const menuItemSchema = yup.object({
+  categoryId: yup.string().required('Choose a category'),
+  name: yup.string().required('Item name is required'),
+  description: yup.string(),
+  price: yup.number().typeError('Price must be a number').required('Price is required').min(0, 'Price cannot be negative'),
+  imageUrl: yup.string().url('Enter a valid URL').notRequired(),
+});
+
 export const riderCreateSchema = yup.object({
   name: yup.string().required('Name is required').min(2, 'Name must be at least 2 characters'),
   email: yup.string().email('Invalid email format'),

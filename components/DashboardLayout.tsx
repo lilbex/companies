@@ -3,18 +3,52 @@
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import { useCompany } from '@/lib/hooks';
+import { useCompany, useMerchant } from '@/lib/hooks';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
+
+// This portal serves two account types on the same routes tree
+// (RESTAURANT_MARKETPLACE_PLAN.md §5a): a fleet manager and a restaurant
+// merchant. Everything below branches on User.role rather than there being
+// a separate app — the merchant-only routes live under dashboard/menu and
+// dashboard/orders, everything else here is manager-only.
+const MERCHANT_ROUTE_PREFIXES = ['/dashboard/menu', '/dashboard/orders'];
+const MANAGER_ONLY_ROUTES = [
+  '/dashboard',
+  '/dashboard/analytics',
+  '/dashboard/tracking',
+  '/dashboard/riders',
+  '/dashboard/deliveries',
+  '/dashboard/vehicles',
+  '/dashboard/earnings',
+];
+
+const managerNavigation = [
+  { name: 'Dashboard', href: '/dashboard', icon: '📊' },
+  { name: 'Analytics', href: '/dashboard/analytics', icon: '📈' },
+  { name: 'Live Tracking', href: '/dashboard/tracking', icon: '🗺️' },
+  { name: 'Riders', href: '/dashboard/riders', icon: '👨‍💼' },
+  { name: 'Deliveries', href: '/dashboard/deliveries', icon: '🚚' },
+  { name: 'Vehicles', href: '/dashboard/vehicles', icon: '🏍️' },
+  { name: 'Earnings', href: '/dashboard/earnings', icon: '💰' },
+];
+
+const merchantNavigation = [
+  { name: 'Orders', href: '/dashboard/orders', icon: '🧾' },
+  { name: 'Menu', href: '/dashboard/menu', icon: '🍽️' },
+];
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [managerData, setManagerData] = useState<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { data: company } = useCompany();
+  const role = managerData?.role === 'merchant' ? 'merchant' : 'manager';
+  const { data: company } = useCompany({ enabled: !!managerData && role === 'manager' });
+  const { data: merchant } = useMerchant({ enabled: !!managerData && role === 'merchant' });
+  const businessName = role === 'merchant' ? merchant?.name : company?.name;
 
   useEffect(() => {
     const data = localStorage.getItem('managerData');
@@ -25,21 +59,27 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     setManagerData(JSON.parse(data));
   }, [router]);
 
+  // Route guard: keep a manager out of merchant-only pages and vice versa —
+  // both account types share this same layout/route tree, so nothing else
+  // stops a manager from typing /dashboard/orders into the address bar.
+  useEffect(() => {
+    if (!managerData) return;
+    const isMerchantRoute = MERCHANT_ROUTE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+    const isManagerOnlyRoute = MANAGER_ONLY_ROUTES.includes(pathname);
+    if (role === 'merchant' && isManagerOnlyRoute) {
+      router.replace('/dashboard/orders');
+    } else if (role === 'manager' && isMerchantRoute) {
+      router.replace('/dashboard');
+    }
+  }, [managerData, role, pathname, router]);
+
   const handleLogout = () => {
     api.clearToken();
     localStorage.removeItem('managerData');
     router.push('/login');
   };
 
-  const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: '📊' },
-    { name: 'Analytics', href: '/dashboard/analytics', icon: '📈' },
-    { name: 'Live Tracking', href: '/dashboard/tracking', icon: '🗺️' },
-    { name: 'Riders', href: '/dashboard/riders', icon: '👨‍💼' },
-    { name: 'Deliveries', href: '/dashboard/deliveries', icon: '🚚' },
-    { name: 'Vehicles', href: '/dashboard/vehicles', icon: '🏍️' },
-    { name: 'Earnings', href: '/dashboard/earnings', icon: '💰' },
-  ];
+  const navigation = role === 'merchant' ? merchantNavigation : managerNavigation;
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -60,7 +100,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Logo/Company */}
         <div className="flex items-center justify-between h-16 px-4 bg-green-600">
           <h1 className="text-xl font-bold text-white truncate">
-            {company?.name || 'CityWheels'}
+            {businessName || 'CityWheels'}
           </h1>
           <button
             onClick={() => setSidebarOpen(false)}
@@ -106,7 +146,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <p className="text-sm font-medium text-gray-900">
                 {managerData?.name}
               </p>
-              <p className="text-xs text-gray-500">Manager</p>
+              <p className="text-xs text-gray-500">{role === 'merchant' ? 'Restaurant Partner' : 'Manager'}</p>
             </div>
           </div>
           <button
@@ -133,7 +173,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </svg>
             </button>
             <h1 className="text-lg font-semibold text-gray-900">
-              {company?.name || 'CityWheels'}
+              {businessName || 'CityWheels'}
             </h1>
             <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
               <span className="text-white text-sm font-bold">

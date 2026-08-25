@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "components/DashboardLayout.tsx",
+    "components/LocationPicker.tsx",
+    "app/login/page.tsx",
+    "app/signup/page.tsx",
+    "app/merchant-setup/page.tsx",
+    "app/dashboard/menu/page.tsx",
+    "app/dashboard/orders/page.tsx",
+    "app/dashboard/orders/[id]/page.tsx",
+    "lib/api.ts",
+    "lib/hooks.ts",
+    "lib/validations.ts"
+  ]
+}

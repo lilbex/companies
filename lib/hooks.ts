@@ -10,10 +10,11 @@ export const queryKeys = {
 };
 
 // Company Queries
-export const useCompany = () => {
+export const useCompany = (options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: queryKeys.company,
     queryFn: () => api.getCompany(),
+    enabled: options?.enabled,
   });
 };
 
@@ -93,6 +94,28 @@ export const useLoginManager = () => {
       emailOrPhone: string;
       password: string;
     }) => api.loginManager(data),
+  });
+};
+
+export const useRegisterMerchant = () => {
+  return useMutation({
+    mutationFn: (data: {
+      name: string;
+      email: string;
+      phoneNumber: string;
+      password: string;
+    }) => api.registerMerchant(data),
+  });
+};
+
+// Role-agnostic — used by the one shared login form (app/login/page.tsx)
+// for both a manager and a merchant account. See api.login()'s comment.
+export const useLogin = () => {
+  return useMutation({
+    mutationFn: (data: {
+      emailOrPhone: string;
+      password: string;
+    }) => api.login(data),
   });
 };
 
@@ -271,6 +294,188 @@ export const useDeleteVehicle = () => {
     mutationFn: (vehicleId: string) => api.deleteVehicle(vehicleId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+    },
+  });
+};
+
+// ==================== Restaurant marketplace (merchant account) ====================
+// See RESTAURANT_MARKETPLACE_PLAN.md §5a. Mirrors the company/* hooks above,
+// scoped to the logged-in merchant.
+
+export const useMerchant = (options?: { enabled?: boolean }) => {
+  return useQuery({
+    queryKey: ['merchant'],
+    queryFn: () => api.getMerchant(),
+    enabled: options?.enabled,
+  });
+};
+
+export const useCreateMerchant = () => {
+  return useMutation({
+    mutationFn: (data: {
+      name: string;
+      description?: string;
+      address: string;
+      location: { latitude: number; longitude: number };
+      phone?: string;
+      email?: string;
+      openingHours?: string;
+    }) => api.createMerchant(data),
+  });
+};
+
+export const useUpdateMerchant = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any) => api.updateMerchant(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['merchant'] });
+    },
+  });
+};
+
+export const useMerchantWallet = () => {
+  return useQuery({
+    queryKey: ['merchant', 'wallet'],
+    queryFn: () => api.getMerchantWallet(),
+  });
+};
+
+export const useMerchantWalletTransactions = () => {
+  return useQuery({
+    queryKey: ['merchant', 'wallet', 'transactions'],
+    queryFn: () => api.getMerchantWalletTransactions(),
+  });
+};
+
+// Menu categories
+export const useMenuCategories = () => {
+  return useQuery({
+    queryKey: ['merchant', 'menu', 'categories'],
+    queryFn: () => api.getMenuCategories(),
+  });
+};
+
+export const useCreateMenuCategory = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { name: string; sortOrder?: number }) => api.createMenuCategory(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['merchant', 'menu', 'categories'] });
+    },
+  });
+};
+
+export const useUpdateMenuCategory = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ categoryId, data }: { categoryId: string; data: { name?: string; sortOrder?: number } }) =>
+      api.updateMenuCategory(categoryId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['merchant', 'menu', 'categories'] });
+    },
+  });
+};
+
+export const useDeleteMenuCategory = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (categoryId: string) => api.deleteMenuCategory(categoryId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['merchant', 'menu', 'categories'] });
+    },
+  });
+};
+
+// Menu items
+export const useMenuItems = () => {
+  return useQuery({
+    queryKey: ['merchant', 'menu', 'items'],
+    queryFn: () => api.getMenuItems(),
+  });
+};
+
+export const useCreateMenuItem = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      categoryId: string;
+      name: string;
+      description?: string;
+      price: number;
+      imageUrl?: string;
+      isAvailable?: boolean;
+    }) => api.createMenuItem(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['merchant', 'menu', 'items'] });
+    },
+  });
+};
+
+export const useUpdateMenuItem = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ itemId, data }: { itemId: string; data: any }) => api.updateMenuItem(itemId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['merchant', 'menu', 'items'] });
+    },
+  });
+};
+
+export const useDeleteMenuItem = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: string) => api.deleteMenuItem(itemId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['merchant', 'menu', 'items'] });
+    },
+  });
+};
+
+// Order queue
+export const useMerchantOrders = (status?: string) => {
+  return useQuery({
+    queryKey: ['merchant', 'orders', status],
+    queryFn: () => api.getMerchantOrders(status),
+    refetchInterval: 10000, // New orders should show up without a manual refresh
+  });
+};
+
+export const useMerchantOrder = (orderId: string) => {
+  return useQuery({
+    queryKey: ['merchant', 'orders', 'detail', orderId],
+    queryFn: () => api.getMerchantOrder(orderId),
+    enabled: !!orderId,
+    refetchInterval: 5000,
+  });
+};
+
+export const useAcceptMerchantOrder = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) => api.acceptMerchantOrder(orderId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['merchant', 'orders'] });
+    },
+  });
+};
+
+export const useRejectMerchantOrder = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orderId, reason }: { orderId: string; reason?: string }) => api.rejectMerchantOrder(orderId, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['merchant', 'orders'] });
+    },
+  });
+};
+
+export const useReadyMerchantOrder = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) => api.readyMerchantOrder(orderId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['merchant', 'orders'] });
     },
   });
 };

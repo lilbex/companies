@@ -5,14 +5,18 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useFormik } from 'formik';
 import { api } from '@/lib/api';
 import { managerLoginSchema } from '@/lib/validations';
-import { useLoginManager } from '@/lib/hooks';
+import { useLogin } from '@/lib/hooks';
 
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [successMessage, setSuccessMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const loginMutation = useLoginManager();
+  // Role-agnostic — one shared login form for a fleet manager or a
+  // restaurant merchant account (RESTAURANT_MARKETPLACE_PLAN.md §5a).
+  // Which dashboard they land on is decided after login, from
+  // response.user.role, not from anything picked on this screen.
+  const loginMutation = useLogin();
 
   useEffect(() => {
     if (searchParams.get('setup') === 'complete') {
@@ -26,13 +30,23 @@ function LoginContent() {
       password: '',
     },
     validationSchema: managerLoginSchema,
-    onSubmit: async (values) => {
+    onSubmit: async (values, { setStatus }) => {
       setSuccessMessage('');
+      setStatus(undefined);
       try {
         const response = await loginMutation.mutateAsync(values);
+        // /auth/login only checks the password — it happily authenticates a
+        // customer or rider account too. This portal is manager/merchant
+        // only, so anything else is rejected client-side rather than ever
+        // storing a token for it.
+        if (response.user.role !== 'manager' && response.user.role !== 'merchant') {
+          loginMutation.reset();
+          setStatus('This account is not a fleet manager or restaurant account.');
+          return;
+        }
         api.setToken(response.access_token);
         localStorage.setItem('managerData', JSON.stringify(response.user));
-        router.push('/dashboard');
+        router.push(response.user.role === 'merchant' ? '/dashboard/orders' : '/dashboard');
       } catch (err: any) {
         // Error is handled by React Query
       }
@@ -119,9 +133,9 @@ function LoginContent() {
             </div>
           </div>
 
-          {loginMutation.error && (
+          {(loginMutation.error || formik.status) && (
             <div className="text-red-600 text-sm text-center">
-              {loginMutation.error.message}
+              {formik.status || loginMutation.error?.message}
             </div>
           )}
 

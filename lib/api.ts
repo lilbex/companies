@@ -82,6 +82,29 @@ class ApiClient {
     return this.post('/auth/manager/login', data);
   }
 
+  async registerMerchant(data: {
+    name: string;
+    email: string;
+    phoneNumber: string;
+    password: string;
+  }) {
+    return this.post('/auth/merchant/register', data);
+  }
+
+  // Role-agnostic login (POST /auth/login checks credentials only, no role
+  // check) — this is what makes one shared login form work for both a
+  // fleet manager and a restaurant merchant account, per
+  // RESTAURANT_MARKETPLACE_PLAN.md §5a ("Authentication is unchanged — one
+  // login/signup flow for both account types"). The caller is responsible
+  // for looking at the returned user.role and rejecting roles this portal
+  // doesn't serve (see app/login/page.tsx).
+  async login(data: {
+    emailOrPhone: string;
+    password: string;
+  }) {
+    return this.post('/auth/login', data);
+  }
+
   // Company endpoints
   async createCompany(data: {
     name: string;
@@ -208,6 +231,104 @@ class ApiClient {
 
   async deleteVehicle(vehicleId: string) {
     return this.client.delete(`/company/vehicles/${vehicleId}`) as unknown as any;
+  }
+
+  // ==================== Restaurant marketplace (merchant account) ====================
+  // Mirrors the merchants/ NestJS module (see RESTAURANT_MARKETPLACE_PLAN.md §5a).
+  // Every one of these is scoped server-side to the Merchant owned by the
+  // logged-in User — same ownership discipline as the company/* endpoints
+  // above, just keyed by merchantId instead of companyId.
+
+  async createMerchant(data: {
+    name: string;
+    description?: string;
+    address: string;
+    location: { latitude: number; longitude: number };
+    phone?: string;
+    email?: string;
+    openingHours?: string;
+  }) {
+    return this.post('/merchants/create', data);
+  }
+
+  async getMerchant() {
+    return this.get('/merchants/profile');
+  }
+
+  async updateMerchant(data: any) {
+    return this.patch('/merchants/profile', data);
+  }
+
+  async getMerchantWallet() {
+    return this.get('/merchants/wallet');
+  }
+
+  async getMerchantWalletTransactions() {
+    return this.get('/merchants/wallet/transactions');
+  }
+
+  // Menu categories
+  async getMenuCategories() {
+    return this.get('/merchants/menu/categories');
+  }
+
+  async createMenuCategory(data: { name: string; sortOrder?: number }) {
+    return this.post('/merchants/menu/categories', data);
+  }
+
+  async updateMenuCategory(categoryId: string, data: { name?: string; sortOrder?: number }) {
+    return this.patch(`/merchants/menu/categories/${categoryId}`, data);
+  }
+
+  async deleteMenuCategory(categoryId: string) {
+    return this.client.delete(`/merchants/menu/categories/${categoryId}`) as unknown as any;
+  }
+
+  // Menu items
+  async getMenuItems() {
+    return this.get('/merchants/menu/items');
+  }
+
+  async createMenuItem(data: {
+    categoryId: string;
+    name: string;
+    description?: string;
+    price: number;
+    imageUrl?: string;
+    isAvailable?: boolean;
+  }) {
+    return this.post('/merchants/menu/items', data);
+  }
+
+  async updateMenuItem(itemId: string, data: any) {
+    return this.patch(`/merchants/menu/items/${itemId}`, data);
+  }
+
+  async deleteMenuItem(itemId: string) {
+    return this.client.delete(`/merchants/menu/items/${itemId}`) as unknown as any;
+  }
+
+  // Order queue (customer checkout happens in the city-wheels app — this
+  // portal only ever sees orders once payment has already succeeded)
+  async getMerchantOrders(status?: string) {
+    return this.get('/merchant-orders/merchant', { params: status ? { status } : undefined });
+  }
+
+  async getMerchantOrder(orderId: string) {
+    return this.get(`/merchant-orders/merchant/${orderId}`);
+  }
+
+  async acceptMerchantOrder(orderId: string) {
+    return this.patch(`/merchant-orders/${orderId}/accept`);
+  }
+
+  async rejectMerchantOrder(orderId: string, reason?: string) {
+    return this.patch(`/merchant-orders/${orderId}/reject`, { reason });
+  }
+
+  /** The combined "Ready — Send Rider" action (RESTAURANT_MARKETPLACE_PLAN.md §4/§8). */
+  async readyMerchantOrder(orderId: string) {
+    return this.patch(`/merchant-orders/${orderId}/ready`);
   }
 }
 
