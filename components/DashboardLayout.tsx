@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { useCompany, useMerchant } from '@/lib/hooks';
+import { useOrderAlerts } from '@/lib/useOrderAlerts';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -49,6 +50,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { data: company } = useCompany({ enabled: !!managerData && role === 'manager' });
   const { data: merchant } = useMerchant({ enabled: !!managerData && role === 'merchant' });
   const businessName = role === 'merchant' ? merchant?.name : company?.name;
+  const orderAlerts = useOrderAlerts();
 
   useEffect(() => {
     const data = localStorage.getItem('managerData');
@@ -182,6 +184,34 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </div>
         </div>
+
+        {/* Order alert opt-in — merchants only. A browser can't be pushed to
+            until the merchant explicitly grants permission (browsers block
+            notifications from ever being requested silently), so this stays
+            visible until they've either enabled it or the browser reports
+            it's on. See lib/useOrderAlerts.ts. */}
+        {role === 'merchant' && orderAlerts.supported && !orderAlerts.isSubscribed && (
+          <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-amber-800">
+              🔔 {orderAlerts.permission === 'denied'
+                ? 'Order alerts are blocked in this browser — enable notifications for this site in your browser settings to hear about new orders.'
+                : 'Turn on order alerts so you hear about a new order the moment it comes in, even in another tab.'}
+            </p>
+            {orderAlerts.permission !== 'denied' && (
+              <button
+                onClick={orderAlerts.enable}
+                disabled={orderAlerts.isBusy}
+                className="text-sm font-medium text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 whitespace-nowrap"
+              >
+                {orderAlerts.isBusy ? 'Enabling…' : 'Enable order alerts'}
+              </button>
+            )}
+          </div>
+        )}
+        {orderAlerts.error && (
+          <div className="bg-red-50 border-b border-red-200 px-4 py-2 text-xs text-red-700">{orderAlerts.error}</div>
+        )}
+
         {children}
       </div>
     </div>

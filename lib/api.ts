@@ -330,6 +330,18 @@ class ApiClient {
   async readyMerchantOrder(orderId: string) {
     return this.patch(`/merchant-orders/${orderId}/ready`);
   }
+
+  // Browser Web Push subscription (new-order alerts — see lib/useOrderAlerts.ts).
+  // These are on /users, not /merchants — a subscription belongs to the
+  // logged-in User (browser+account), the same way pushTokens does for the
+  // mobile app, not to the Merchant business profile.
+  async subscribeWebPush(subscription: { endpoint: string; keys: { p256dh: string; auth: string } }) {
+    return this.client.put('/users/web-push-subscription', { subscription }) as unknown as any;
+  }
+
+  async unsubscribeWebPush(endpoint: string) {
+    return this.client.delete('/users/web-push-subscription', { data: { endpoint } }) as unknown as any;
+  }
 }
 
 export const api = new ApiClient(API_BASE_URL);
