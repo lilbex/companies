@@ -1,9 +1,10 @@
 import axios, { AxiosInstance } from 'axios';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
-  (process.env.NODE_ENV === 'production' 
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === 'production'
     ? 'https://web-production-65f03.up.railway.app'
-    : 'http://192.168.1.47:4000');
+    : 'https://city-wheel-backend-staging.up.railway.app');
 
 
 class ApiClient {
