@@ -46,7 +46,20 @@ function LoginContent() {
         }
         api.setToken(response.access_token);
         localStorage.setItem('managerData', JSON.stringify(response.user));
-        router.push(response.user.role === 'merchant' ? '/dashboard/orders' : '/dashboard');
+        if (response.user.role === 'merchant') {
+          // A merchant User account can exist before its Merchant profile
+          // does (e.g. they registered but setup got interrupted) -- send
+          // them to finish setup instead of a dashboard that 404s on
+          // every merchant-scoped call.
+          try {
+            await api.getMerchant();
+            router.push('/dashboard/orders');
+          } catch {
+            router.push('/merchant-setup');
+          }
+        } else {
+          router.push('/dashboard');
+        }
       } catch (err: any) {
         // Error is handled by React Query
       }

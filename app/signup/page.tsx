@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useFormik } from 'formik';
 import { managerSignupSchema, merchantSignupSchema } from '@/lib/validations';
 import { useRegisterManager, useRegisterMerchant } from '@/lib/hooks';
+import { api } from '@/lib/api';
 
 // One shared signup form for both account types this portal serves
 // (RESTAURANT_MARKETPLACE_PLAN.md §5a) — the fields are identical, so only
@@ -38,11 +39,18 @@ export default function SignupPage() {
         };
         if (accountType === 'manager') {
           await registerManagerMutation.mutateAsync(data);
-          router.push('/company-setup');
         } else {
           await registerMerchantMutation.mutateAsync(data);
-          router.push('/merchant-setup');
         }
+        // Registration only creates the account -- it doesn't return an
+        // auth token, so log in immediately with the same credentials
+        // before heading to the setup page, which calls an authenticated
+        // endpoint (POST /company/create or /merchants/create). Without
+        // this, that call goes out with no token and 401s.
+        const loginResponse = await api.login({ emailOrPhone: values.email, password: values.password });
+        api.setToken(loginResponse.access_token);
+        localStorage.setItem('managerData', JSON.stringify(loginResponse.user));
+        router.push(accountType === 'manager' ? '/company-setup' : '/merchant-setup');
       } catch (err: any) {
         // Error is handled by React Query
       }
