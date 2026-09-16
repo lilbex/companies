@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFormik } from 'formik';
 import dynamic from 'next/dynamic';
 import { merchantSetupSchema } from '@/lib/validations';
-import { useCreateMerchant } from '@/lib/hooks';
+import { useCreateMerchant, useMerchant, useUpdateMerchant } from '@/lib/hooks';
 
 // Dynamically import to avoid SSR issues with Leaflet (same pattern as
 // app/dashboard/tracking/page.tsx's LiveMap import).
@@ -13,9 +13,20 @@ const LocationPicker = dynamic(() => import('@/components/LocationPicker'), { ss
 
 export default function MerchantSetupPage() {
   const router = useRouter();
+  // This page serves three cases with one form: a brand-new merchant
+  // finishing signup, an existing merchant editing their profile from the
+  // dashboard's Profile link, and a merchant whose profile creation got
+  // interrupted (e.g. the old signup 401) landing here via the login
+  // redirect. Which one it is comes from whether GET /merchants/profile
+  // finds anything -- not from how the page was reached.
+  const { data: merchant, isLoading, isError } = useMerchant();
+  const isEditing = !isLoading && !isError && !!merchant;
   const createMerchantMutation = useCreateMerchant();
+  const updateMerchantMutation = useUpdateMerchant();
+  const saveMutation = isEditing ? updateMerchantMutation : createMerchantMutation;
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationError, setLocationError] = useState('');
+  const [prefilled, setPrefilled] = useState(false);
 
   const formik = useFormik({
     initialValues: {
@@ -27,6 +38,7 @@ export default function MerchantSetupPage() {
       openingHours: '',
     },
     validationSchema: merchantSetupSchema,
+    enableReinitialize: false,
     onSubmit: async (values) => {
       if (!location) {
         setLocationError('Please set your restaurant’s location on the map below.');
@@ -34,20 +46,56 @@ export default function MerchantSetupPage() {
       }
       setLocationError('');
       try {
-        await createMerchantMutation.mutateAsync({ ...values, location });
-        router.push('/login?setup=complete');
+        await saveMutation.mutateAsync({ ...values, location });
+        router.push('/dashboard/orders');
       } catch (err: any) {
         // Error is handled by React Query
       }
     },
   });
 
+  // Prefill once an existing profile loads. Guarded by `prefilled` so it
+  // only happens once -- formik.setValues would otherwise stomp on
+  // whatever the merchant is actively typing every time this re-runs.
+  useEffect(() => {
+    if (merchant && !prefilled) {
+      formik.setValues({
+        name: merchant.name || '',
+        description: merchant.description || '',
+        address: merchant.address || '',
+        phone: merchant.phone || '',
+        email: merchant.email || '',
+        openingHours: merchant.openingHours || '',
+      });
+      if (merchant.location) setLocation(merchant.location);
+      setPrefilled(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [merchant, prefilled]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-500">Loading your restaurant profile…</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12">
       <div className="max-w-md w-full space-y-8 px-4">
         <div>
+          {isEditing && (
+            <button
+              type="button"
+              onClick={() => router.push('/dashboard/orders')}
+              className="text-sm text-green-600 hover:text-green-500 mb-2"
+            >
+              ← Back to dashboard
+            </button>
+          )}
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Set Up Your Restaurant
+            {isEditing ? 'Edit Your Restaurant' : 'Set Up Your Restaurant'}
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             This is what customers will see when browsing restaurants in the CityWheels app
@@ -146,24 +194,28 @@ export default function MerchantSetupPage() {
             </div>
           </div>
 
-          {createMerchantMutation.error && (
+          {saveMutation.error && (
             <div className="text-red-600 text-sm text-center">
-              {createMerchantMutation.error.message}
+              {(saveMutation.error as any).message}
             </div>
           )}
 
           <div>
             <button
               type="submit"
-              disabled={createMerchantMutation.isPending}
+              disabled={saveMutation.isPending}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
             >
-              {createMerchantMutation.isPending ? 'Creating Restaurant...' : 'Complete Setup'}
+              {saveMutation.isPending
+                ? (isEditing ? 'Saving…' : 'Creating Restaurant...')
+                : (isEditing ? 'Save Changes' : 'Complete Setup')}
             </button>
           </div>
-          <p className="text-xs text-center text-gray-400">
-            A CityWheels admin will need to approve your restaurant before it appears to customers.
-          </p>
+          {!isEditing && (
+            <p className="text-xs text-center text-gray-400">
+              A CityWheels admin will need to approve your restaurant before it appears to customers.
+            </p>
+          )}
         </form>
       </div>
     </div>

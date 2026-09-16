@@ -39,6 +39,7 @@ const managerNavigation = [
 const merchantNavigation = [
   { name: 'Orders', href: '/dashboard/orders', icon: '🧾' },
   { name: 'Menu', href: '/dashboard/menu', icon: '🍽️' },
+  { name: 'Profile', href: '/merchant-setup', icon: '🏪' },
 ];
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
