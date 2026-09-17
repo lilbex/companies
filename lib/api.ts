@@ -305,6 +305,12 @@ class ApiClient {
     return this.patch(`/merchants/menu/items/${itemId}`, data);
   }
 
+  async uploadMenuItemImage(itemId: string, file: File) {
+    const formData = new FormData();
+    formData.append('image', file);
+    return this.post(`/merchants/menu/items/${itemId}/image`, formData);
+  }
+
   async deleteMenuItem(itemId: string) {
     return this.client.delete(`/merchants/menu/items/${itemId}`) as unknown as any;
   }

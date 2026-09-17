@@ -422,6 +422,16 @@ export const useUpdateMenuItem = () => {
   });
 };
 
+export const useUploadMenuItemImage = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ itemId, file }: { itemId: string; file: File }) => api.uploadMenuItemImage(itemId, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['merchant', 'menu', 'items'] });
+    },
+  });
+};
+
 export const useDeleteMenuItem = () => {
   const queryClient = useQueryClient();
   return useMutation({

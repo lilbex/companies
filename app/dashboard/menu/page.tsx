@@ -10,6 +10,7 @@ import {
   useMenuItems,
   useCreateMenuItem,
   useUpdateMenuItem,
+  useUploadMenuItemImage,
   useDeleteMenuItem,
 } from '@/lib/hooks';
 
@@ -63,6 +64,9 @@ export default function MenuPage() {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [itemForm, setItemForm] = useState(emptyItemForm);
   const [itemFormError, setItemFormError] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const uploadImage = useUploadMenuItemImage();
 
   const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,6 +97,8 @@ export default function MenuPage() {
     setEditingItemId(null);
     setItemFormError('');
     setItemForm({ ...emptyItemForm, categoryId: categoryId || (categories[0] ? itemKey(categories[0]) : '') });
+    setImageFile(null);
+    setImagePreview(null);
     setShowItemForm(true);
   };
 
@@ -107,6 +113,8 @@ export default function MenuPage() {
       imageUrl: item.imageUrl || '',
       isAvailable: item.isAvailable !== false,
     });
+    setImageFile(null);
+    setImagePreview(item.imageUrl || null);
     setShowItemForm(true);
   };
 
@@ -135,14 +143,24 @@ export default function MenuPage() {
       isAvailable: itemForm.isAvailable,
     };
     try {
+      let itemId = editingItemId;
       if (editingItemId) {
         await updateItem.mutateAsync({ itemId: editingItemId, data: payload });
       } else {
-        await createItem.mutateAsync(payload);
+        const created = await createItem.mutateAsync(payload);
+        itemId = (created as any)?._id || (created as any)?.id || null;
+      }
+      // The item's other fields save above regardless -- a failed image
+      // upload shouldn't lose the rest of the form, so this is a second,
+      // separate step rather than bundled into the same request.
+      if (imageFile && itemId) {
+        await uploadImage.mutateAsync({ itemId, file: imageFile });
       }
       setShowItemForm(false);
       setItemForm(emptyItemForm);
       setEditingItemId(null);
+      setImageFile(null);
+      setImagePreview(null);
     } catch (err: any) {
       setItemFormError(err?.message || 'Could not save this item.');
     }
@@ -309,11 +327,45 @@ export default function MenuPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Image URL</label>
+                  <label className="block text-sm font-medium text-gray-700">Photo</label>
+                  <div className="mt-1 flex items-center gap-4">
+                    {imagePreview || itemForm.imageUrl ? (
+                      <img
+                        src={imagePreview || itemForm.imageUrl}
+                        alt=""
+                        className="w-16 h-16 rounded-lg object-cover border border-gray-200"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center text-2xl">
+                        🍽️
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        setImageFile(file);
+                        setImagePreview(file ? URL.createObjectURL(file) : itemForm.imageUrl || null);
+                      }}
+                      className="text-sm text-gray-600"
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-gray-400">
+                    This is what customers see on the item in the CityWheels app.
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Or paste an Image URL instead
+                  </label>
                   <input
                     type="text"
                     value={itemForm.imageUrl}
-                    onChange={(e) => setItemForm({ ...itemForm, imageUrl: e.target.value })}
+                    onChange={(e) => {
+                      setItemForm({ ...itemForm, imageUrl: e.target.value });
+                      if (!imageFile) setImagePreview(e.target.value || null);
+                    }}
                     placeholder="https://..."
                     className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                   />
@@ -332,10 +384,14 @@ export default function MenuPage() {
                 <div className="flex gap-3">
                   <button
                     type="submit"
-                    disabled={createItem.isPending || updateItem.isPending}
+                    disabled={createItem.isPending || updateItem.isPending || uploadImage.isPending}
                     className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
                   >
-                    {editingItemId ? 'Save Changes' : 'Add Item'}
+                    {uploadImage.isPending
+                      ? 'Uploading photo…'
+                      : editingItemId
+                        ? 'Save Changes'
+                        : 'Add Item'}
                   </button>
                   <button
                     type="button"
@@ -364,6 +420,7 @@ export default function MenuPage() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Photo</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
@@ -374,6 +431,13 @@ export default function MenuPage() {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {items.map((item) => (
                       <tr key={itemKey(item)} className="hover:bg-gray-50">
+                        <td className="px-4 py-3">
+                          {item.imageUrl ? (
+                            <img src={item.imageUrl} alt="" className="w-10 h-10 rounded-md object-cover border border-gray-200" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-md bg-gray-100 flex items-center justify-center text-base">🍽️</div>
+                          )}
+                        </td>
                         <td className="px-4 py-3">
                           <div className="text-sm font-medium text-gray-900">{item.name}</div>
                           {item.description && (
