@@ -310,6 +310,43 @@ export const useMerchant = (options?: { enabled?: boolean }) => {
   });
 };
 
+export const useSetMerchantOpenStatus = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (isOpenNow: boolean) => api.setMerchantOpenStatus(isOpenNow),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['merchant'] });
+    },
+  });
+};
+
+// ── Payout account (split-payment) ──
+
+export const usePayoutBanks = () => {
+  return useQuery({
+    queryKey: ['merchant', 'payout-banks'],
+    queryFn: () => api.getPayoutBanks(),
+    staleTime: Infinity, // the bank list doesn't change within a session
+  });
+};
+
+export const useVerifyPayoutAccount = () => {
+  return useMutation({
+    mutationFn: ({ accountNumber, bankCode }: { accountNumber: string; bankCode: string }) =>
+      api.verifyPayoutAccount(accountNumber, bankCode),
+  });
+};
+
+export const useSetPayoutAccount = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { bankCode: string; bankName: string; accountNumber: string }) => api.setPayoutAccount(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['merchant'] });
+    },
+  });
+};
+
 export const useCreateMerchant = () => {
   return useMutation({
     mutationFn: (data: {

@@ -260,6 +260,25 @@ class ApiClient {
     return this.patch('/merchants/profile', data);
   }
 
+  /** The merchant's own open/closed toggle -- see backend Merchant.isOpenNow. */
+  async setMerchantOpenStatus(isOpenNow: boolean) {
+    return this.patch('/merchants/profile/open-status', { isOpenNow });
+  }
+
+  // ── Payout account (split-payment) ──
+
+  async getPayoutBanks() {
+    return this.get('/merchants/payout-account/banks');
+  }
+
+  async verifyPayoutAccount(accountNumber: string, bankCode: string) {
+    return this.post('/merchants/payout-account/verify', { accountNumber, bankCode });
+  }
+
+  async setPayoutAccount(data: { bankCode: string; bankName: string; accountNumber: string }) {
+    return this.patch('/merchants/payout-account', data);
+  }
+
   async getMerchantWallet() {
     return this.get('/merchants/wallet');
   }

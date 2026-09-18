@@ -3,7 +3,7 @@
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import { useCompany, useMerchant } from '@/lib/hooks';
+import { useCompany, useMerchant, useSetMerchantOpenStatus } from '@/lib/hooks';
 import { useOrderAlerts } from '@/lib/useOrderAlerts';
 
 interface DashboardLayoutProps {
@@ -15,7 +15,7 @@ interface DashboardLayoutProps {
 // merchant. Everything below branches on User.role rather than there being
 // a separate app — the merchant-only routes live under dashboard/menu and
 // dashboard/orders, everything else here is manager-only.
-const MERCHANT_ROUTE_PREFIXES = ['/dashboard/menu', '/dashboard/orders'];
+const MERCHANT_ROUTE_PREFIXES = ['/dashboard/menu', '/dashboard/orders', '/dashboard/profile', '/dashboard/wallet', '/dashboard/overview'];
 const MANAGER_ONLY_ROUTES = [
   '/dashboard',
   '/dashboard/analytics',
@@ -37,9 +37,11 @@ const managerNavigation = [
 ];
 
 const merchantNavigation = [
+  { name: 'Overview', href: '/dashboard/overview', icon: '📊' },
   { name: 'Orders', href: '/dashboard/orders', icon: '🧾' },
   { name: 'Menu', href: '/dashboard/menu', icon: '🍽️' },
-  { name: 'Profile', href: '/merchant-setup', icon: '🏪' },
+  { name: 'Wallet', href: '/dashboard/wallet', icon: '💰' },
+  { name: 'Profile', href: '/dashboard/profile', icon: '🏪' },
 ];
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
@@ -52,6 +54,24 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { data: merchant } = useMerchant({ enabled: !!managerData && role === 'merchant' });
   const businessName = role === 'merchant' ? merchant?.name : company?.name;
   const orderAlerts = useOrderAlerts();
+  const setOpenStatus = useSetMerchantOpenStatus();
+  // Optimistic-ish: reflects the merchant's own last toggle immediately
+  // rather than waiting on the invalidated query, since this bar is meant
+  // to feel like a light switch, not a form save.
+  const [openOverride, setOpenOverride] = useState<boolean | null>(null);
+  const [openStatusError, setOpenStatusError] = useState('');
+  const isOpenNow = openOverride ?? merchant?.isOpenNow ?? true;
+  const handleToggleOpen = () => {
+    const next = !isOpenNow;
+    setOpenOverride(next);
+    setOpenStatusError('');
+    setOpenStatus.mutate(next, {
+      onError: (err: any) => {
+        setOpenOverride(!next);
+        setOpenStatusError(err?.message || 'Could not update your status');
+      },
+    });
+  };
 
   useEffect(() => {
     const data = localStorage.getItem('managerData');
@@ -70,7 +90,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     const isMerchantRoute = MERCHANT_ROUTE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
     const isManagerOnlyRoute = MANAGER_ONLY_ROUTES.includes(pathname);
     if (role === 'merchant' && isManagerOnlyRoute) {
-      router.replace('/dashboard/orders');
+      router.replace('/dashboard/overview');
     } else if (role === 'manager' && isMerchantRoute) {
       router.replace('/dashboard');
     }
@@ -185,6 +205,59 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </div>
         </div>
+
+        {/* Open/closed status -- merchants only. The merchant's own day-to-day
+            switch (Merchant.isOpenNow), separate from admin approval --
+            shown as a bar above everything else, on every page, so it's
+            never more than a glance and a tap away regardless of which
+            dashboard page they're on. See MerchantsService.setOpenStatus. */}
+        {role === 'merchant' && merchant && (
+          <div className={`px-4 py-2.5 flex items-center justify-between gap-2 border-b ${
+            isOpenNow ? 'bg-green-50 border-green-200' : 'bg-gray-100 border-gray-200'
+          }`}>
+            <div className="flex items-center gap-2">
+              <span className={`w-2.5 h-2.5 rounded-full ${isOpenNow ? 'bg-green-500' : 'bg-gray-400'}`} />
+              <p className={`text-sm font-medium ${isOpenNow ? 'text-green-800' : 'text-gray-600'}`}>
+                {isOpenNow ? 'Open for orders' : 'Closed — customers can browse but not order'}
+              </p>
+            </div>
+            <button
+              onClick={handleToggleOpen}
+              disabled={setOpenStatus.isPending}
+              role="switch"
+              aria-checked={isOpenNow}
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
+                isOpenNow ? 'bg-green-600' : 'bg-gray-300'
+              }`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                isOpenNow ? 'translate-x-6' : 'translate-x-1'
+              }`} />
+            </button>
+          </div>
+        )}
+        {role === 'merchant' && openStatusError && (
+          <div className="bg-red-50 border-b border-red-200 px-4 py-2 text-xs text-red-700">{openStatusError}</div>
+        )}
+
+        {/* Payout account nudge -- merchants only, and only until they've
+            set one up (see components/PayoutAccountForm.tsx). This is the
+            friendly version of the gate; MerchantsService.setOpenStatus and
+            MerchantOrdersService.createOrder are what actually enforce it
+            server-side, this is just so they see it before they hit either. */}
+        {role === 'merchant' && merchant && !merchant.paystackSubaccountCode && (
+          <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-amber-800">
+              💳 Set up your payout account so you can open for orders — your share of each order goes straight to your bank.
+            </p>
+            <button
+              onClick={() => router.push('/dashboard/wallet')}
+              className="text-sm font-medium text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+            >
+              Set up payout account
+            </button>
+          </div>
+        )}
 
         {/* Order alert opt-in — merchants only. A browser can't be pushed to
             until the merchant explicitly grants permission (browsers block

@@ -53,7 +53,7 @@ function LoginContent() {
           // every merchant-scoped call.
           try {
             await api.getMerchant();
-            router.push('/dashboard/orders');
+            router.push('/dashboard/overview');
           } catch {
             router.push('/merchant-setup');
           }
