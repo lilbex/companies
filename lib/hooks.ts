@@ -480,10 +480,20 @@ export const useRejectMerchantOrder = () => {
   });
 };
 
-export const useReadyMerchantOrder = () => {
+/** Riders to browse/choose from for this order. Polled lightly while the picker is open so a rider that just went offline drops off the list. */
+export const useOrderRiders = (orderId: string, options?: { enabled?: boolean }) => {
+  return useQuery({
+    queryKey: ['merchant', 'orders', 'riders', orderId],
+    queryFn: () => api.getOrderRiders(orderId),
+    enabled: (options?.enabled ?? true) && !!orderId,
+    refetchInterval: 10000,
+  });
+};
+
+export const useSendOrderToRider = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (orderId: string) => api.readyMerchantOrder(orderId),
+    mutationFn: ({ orderId, riderId }: { orderId: string; riderId: string }) => api.sendOrderToRider(orderId, riderId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['merchant', 'orders'] });
     },

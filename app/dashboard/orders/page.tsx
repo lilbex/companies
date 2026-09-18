@@ -7,19 +7,17 @@ import DashboardLayout from '@/components/DashboardLayout';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All Orders' },
-  { value: 'pending_merchant', label: 'Needs Response' },
-  { value: 'accepted', label: 'Accepted' },
-  { value: 'preparing', label: 'Preparing' },
-  { value: 'ready_for_pickup', label: 'Ready / Rider Sent' },
+  { value: 'accepted', label: 'Preparing' },
+  { value: 'ready_for_pickup', label: 'Rider Sent' },
   { value: 'rejected', label: 'Rejected' },
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
 const STATUS_LABEL: Record<string, string> = {
-  pending_merchant: 'Needs Response',
-  accepted: 'Accepted',
+  pending_merchant: 'Needs Response', // legacy — new orders skip straight to 'accepted'
+  accepted: 'Preparing',
   preparing: 'Preparing',
-  ready_for_pickup: 'Ready — Rider Sent',
+  ready_for_pickup: 'Rider Sent',
   rejected: 'Rejected',
   cancelled: 'Cancelled',
 };
@@ -47,7 +45,6 @@ export default function MerchantOrdersPage() {
   const { data: orders, isLoading } = useMerchantOrders(statusFilter || undefined);
 
   const list = orders || [];
-  const needsResponseCount = (orders || []).filter((o: any) => o.status === 'pending_merchant').length;
 
   return (
     <DashboardLayout>
@@ -56,11 +53,7 @@ export default function MerchantOrdersPage() {
           <div className="px-6 py-4 flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
-              <p className="text-sm text-gray-600">
-                {needsResponseCount > 0
-                  ? `${needsResponseCount} order${needsResponseCount === 1 ? '' : 's'} waiting on you`
-                  : 'New orders refresh automatically every few seconds'}
-              </p>
+              <p className="text-sm text-gray-600">New orders refresh automatically every few seconds</p>
             </div>
             <select
               value={statusFilter}

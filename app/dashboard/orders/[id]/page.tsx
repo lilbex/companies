@@ -5,16 +5,16 @@ import { useParams, useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import {
   useMerchantOrder,
-  useAcceptMerchantOrder,
   useRejectMerchantOrder,
-  useReadyMerchantOrder,
+  useOrderRiders,
+  useSendOrderToRider,
 } from '@/lib/hooks';
 
 const STATUS_LABEL: Record<string, string> = {
   pending_merchant: 'Needs Response',
-  accepted: 'Accepted',
+  accepted: 'Preparing',
   preparing: 'Preparing',
-  ready_for_pickup: 'Ready — Rider Sent',
+  ready_for_pickup: 'Rider Sent',
   rejected: 'Rejected',
   cancelled: 'Cancelled',
 };
@@ -41,13 +41,15 @@ export default function MerchantOrderDetailPage() {
   const router = useRouter();
   const orderId = params?.id as string;
   const { data: order, isLoading } = useMerchantOrder(orderId);
-  const acceptOrder = useAcceptMerchantOrder();
   const rejectOrder = useRejectMerchantOrder();
-  const readyOrder = useReadyMerchantOrder();
+  const sendToRider = useSendOrderToRider();
 
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [actionError, setActionError] = useState('');
+  const [showRiderPicker, setShowRiderPicker] = useState(false);
+  const [sendingToRiderId, setSendingToRiderId] = useState<string | null>(null);
+  const { data: riders, isLoading: ridersLoading, error: ridersError } = useOrderRiders(orderId, { enabled: showRiderPicker });
 
   if (isLoading) {
     return (
@@ -71,32 +73,26 @@ export default function MerchantOrderDetailPage() {
 
   const total = (order.itemsSubtotal || 0) + (order.deliveryFee || 0);
 
-  const handleAccept = async () => {
-    setActionError('');
-    try {
-      await acceptOrder.mutateAsync(orderId);
-    } catch (err: any) {
-      setActionError(err?.message || 'Could not accept this order.');
-    }
-  };
-
   const handleReject = async () => {
     setActionError('');
     try {
       await rejectOrder.mutateAsync({ orderId, reason: rejectReason.trim() || undefined });
       setShowRejectForm(false);
     } catch (err: any) {
-      setActionError(err?.message || 'Could not reject this order.');
+      setActionError(err?.message || 'Could not cancel this order.');
     }
   };
 
-  const handleReady = async () => {
+  const handleSendToRider = async (riderId: string) => {
     setActionError('');
-    if (!confirm('Mark this order ready and send a rider to pick it up?')) return;
+    setSendingToRiderId(riderId);
     try {
-      await readyOrder.mutateAsync(orderId);
+      await sendToRider.mutateAsync({ orderId, riderId });
+      setShowRiderPicker(false);
     } catch (err: any) {
-      setActionError(err?.message || 'Could not request a rider for this order.');
+      setActionError(err?.message || 'Could not send this order to that rider.');
+    } finally {
+      setSendingToRiderId(null);
     }
   };
 
@@ -125,22 +121,17 @@ export default function MerchantOrderDetailPage() {
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">{actionError}</div>
           )}
 
-          {/* Action bar */}
+          {/* pending_merchant is a legacy state from before checkout skipped
+              straight to 'accepted' -- new orders never land here, but an
+              old stuck order still needs a way out. */}
           {order.status === 'pending_merchant' && (
             <div className="bg-white shadow rounded-lg p-6 flex flex-wrap gap-3 items-center">
-              <p className="text-sm text-gray-600 mr-auto">This order is waiting for you to accept or reject it.</p>
-              <button
-                onClick={handleAccept}
-                disabled={acceptOrder.isPending}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
-              >
-                {acceptOrder.isPending ? 'Accepting...' : 'Accept Order'}
-              </button>
+              <p className="text-sm text-gray-600 mr-auto">This order is from before orders went straight to preparing. You can still cancel it if needed.</p>
               <button
                 onClick={() => setShowRejectForm((v) => !v)}
                 className="border border-red-300 text-red-600 hover:bg-red-50 px-4 py-2 rounded-md text-sm font-medium"
               >
-                Reject Order
+                Cancel Order
               </button>
             </div>
           )}
@@ -161,37 +152,89 @@ export default function MerchantOrderDetailPage() {
                   disabled={rejectOrder.isPending}
                   className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
                 >
-                  {rejectOrder.isPending ? 'Rejecting...' : 'Confirm Reject'}
+                  {rejectOrder.isPending ? 'Cancelling...' : 'Confirm Cancel'}
                 </button>
                 <button
                   onClick={() => setShowRejectForm(false)}
                   className="text-gray-600 px-4 py-2 text-sm"
                 >
-                  Cancel
+                  Never mind
                 </button>
               </div>
             </div>
           )}
 
-          {(order.status === 'accepted' || order.status === 'preparing') && (
+          {(order.status === 'accepted' || order.status === 'preparing') && !showRiderPicker && (
             <div className="bg-white shadow rounded-lg p-6 flex flex-wrap gap-3 items-center">
               <p className="text-sm text-gray-600 mr-auto">
-                When the food is ready, send it out — this dispatches a rider using the delivery details from checkout.
+                When the food is ready, search for a nearby rider and send it out with them — just like a customer sends their own delivery to a rider.
               </p>
               <button
-                onClick={handleReady}
-                disabled={readyOrder.isPending}
-                className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+                onClick={() => { setShowRejectForm(false); setShowRiderPicker(true); }}
+                className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-md text-sm font-medium"
               >
-                {readyOrder.isPending ? 'Sending...' : 'Ready — Send Rider'}
+                Find a Rider
               </button>
+              <button
+                onClick={() => setShowRejectForm((v) => !v)}
+                className="text-sm text-red-600 hover:text-red-700 font-medium"
+              >
+                Cancel order
+              </button>
+            </div>
+          )}
+
+          {(order.status === 'accepted' || order.status === 'preparing') && showRiderPicker && (
+            <div className="bg-white shadow rounded-lg p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-900">Choose a rider to send this order to</h3>
+                <button onClick={() => setShowRiderPicker(false)} className="text-sm text-gray-500 hover:text-gray-700">Close</button>
+              </div>
+
+              {ridersLoading ? (
+                <p className="text-sm text-gray-500">Looking for nearby riders...</p>
+              ) : ridersError ? (
+                <p className="text-sm text-red-600">Couldn't load nearby riders. Try again.</p>
+              ) : !riders || riders.length === 0 ? (
+                <p className="text-sm text-gray-500">No riders are online near you right now. Try again in a moment.</p>
+              ) : (
+                <ul className="divide-y divide-gray-100">
+                  {riders.map((rider: any) => {
+                    const id = rider.id || rider._id;
+                    const isSending = sendingToRiderId === id;
+                    return (
+                      <li key={id} className="flex items-center justify-between py-3 gap-4">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {rider.name}
+                            {rider.recommended && (
+                              <span className="ml-2 inline-flex px-2 py-0.5 text-[11px] font-semibold rounded-full bg-green-100 text-green-700">Recommended</span>
+                            )}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {rider.vehicleType}{rider.vehicleColor ? ` · ${rider.vehicleColor}` : ''} · {rider.distanceFromPickupKm}km away · ETA {rider.eta}
+                            {typeof rider.rating === 'number' && ` · ★ ${rider.rating.toFixed(1)}`}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleSendToRider(id)}
+                          disabled={sendToRider.isPending}
+                          className="shrink-0 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-md text-sm font-medium disabled:opacity-50"
+                        >
+                          {isSending ? 'Sending...' : 'Send'}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
           )}
 
           {order.status === 'ready_for_pickup' && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-6">
               <p className="text-sm text-green-800 font-medium">
-                🛵 A rider has been requested for this order.
+                🛵 This order has been sent to a rider.
               </p>
               <p className="text-xs text-green-700 mt-1">
                 The customer can track the rider from the CityWheels app. This order stays here for your records.

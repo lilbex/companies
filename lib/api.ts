@@ -333,9 +333,14 @@ class ApiClient {
     return this.patch(`/merchant-orders/${orderId}/reject`, { reason });
   }
 
-  /** The combined "Ready — Send Rider" action (RESTAURANT_MARKETPLACE_PLAN.md §4/§8). */
-  async readyMerchantOrder(orderId: string) {
-    return this.patch(`/merchant-orders/${orderId}/ready`);
+  /** Riders to browse/choose from for this order — same ranked list a customer's own picker sees. */
+  async getOrderRiders(orderId: string) {
+    return this.get(`/merchant-orders/${orderId}/riders`);
+  }
+
+  /** The restaurant's own "send to this rider" action (RESTAURANT_MARKETPLACE_PLAN.md §4/§8, revised). */
+  async sendOrderToRider(orderId: string, riderId: string) {
+    return this.patch(`/merchant-orders/${orderId}/send-to-rider`, { riderId });
   }
 
   // Browser Web Push subscription (new-order alerts — see lib/useOrderAlerts.ts).
