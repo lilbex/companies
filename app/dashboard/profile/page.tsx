@@ -31,7 +31,9 @@ export default function MerchantProfilePage() {
         <header className="bg-white shadow">
           <div className="px-6 py-4">
             <h1 className="text-2xl font-bold text-gray-900">Profile</h1>
-            <p className="text-sm text-gray-600">Your restaurant's details, as customers see them</p>
+            <p className="text-sm text-gray-600">
+              Your {merchant?.type === 'store' ? 'store' : 'restaurant'}'s details, as customers see them
+            </p>
           </div>
         </header>
 

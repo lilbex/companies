@@ -242,6 +242,7 @@ class ApiClient {
 
   async createMerchant(data: {
     name: string;
+    type?: 'restaurant' | 'store';
     description?: string;
     address: string;
     location: { latitude: number; longitude: number };

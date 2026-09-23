@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import {
+  useMerchant,
   useMenuCategories,
   useCreateMenuCategory,
   useUpdateMenuCategory,
@@ -44,6 +45,13 @@ const emptyItemForm = {
 };
 
 export default function MenuPage() {
+  const { data: merchant } = useMerchant();
+  const isStore = merchant?.type === 'store';
+  const itemLabel = isStore ? 'Product' : 'Menu Item';
+  const itemLabelLower = isStore ? 'product' : 'menu item';
+  const itemLabelPlural = isStore ? 'Products' : 'Menu Items';
+  const itemLabelPluralLower = isStore ? 'products' : 'menu items';
+  const businessNoun = isStore ? 'store' : 'restaurant';
   const { data: categoriesData, isLoading: categoriesLoading } = useMenuCategories();
   const { data: itemsData, isLoading: itemsLoading } = useMenuItems();
   const createCategory = useCreateMenuCategory();
@@ -88,7 +96,7 @@ export default function MenuPage() {
 
   const handleDeleteCategory = async (categoryId: string) => {
     const hasItems = items.some((i) => i.categoryId === categoryId);
-    if (hasItems && !confirm('This category still has menu items in it. Delete it anyway?')) return;
+    if (hasItems && !confirm(`This category still has ${itemLabelPluralLower} in it. Delete it anyway?`)) return;
     if (!hasItems && !confirm('Delete this category?')) return;
     await deleteCategory.mutateAsync(categoryId);
   };
@@ -167,7 +175,7 @@ export default function MenuPage() {
   };
 
   const handleDeleteItem = async (itemId: string) => {
-    if (!confirm('Delete this menu item?')) return;
+    if (!confirm(`Delete this ${itemLabelLower}?`)) return;
     await deleteItem.mutateAsync(itemId);
   };
 
@@ -185,15 +193,15 @@ export default function MenuPage() {
         <header className="bg-white shadow">
           <div className="px-6 py-4 flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Menu</h1>
-              <p className="text-sm text-gray-600">Manage what customers see when they browse your restaurant</p>
+              <h1 className="text-2xl font-bold text-gray-900">{itemLabelPlural}</h1>
+              <p className="text-sm text-gray-600">Manage what customers see when they browse your {businessNoun}</p>
             </div>
             <button
               onClick={() => openNewItemForm()}
               disabled={categories.length === 0}
               className="bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-md text-sm font-medium"
             >
-              + Add Menu Item
+              + Add {itemLabel}
             </button>
           </div>
         </header>
@@ -207,7 +215,7 @@ export default function MenuPage() {
                 type="text"
                 value={newCategoryName}
                 onChange={(e) => setNewCategoryName(e.target.value)}
-                placeholder="e.g. Starters, Drinks, Desserts"
+                placeholder={isStore ? "e.g. Phones, Accessories, Chargers" : "e.g. Starters, Drinks, Desserts"}
                 className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
               />
               <button
@@ -221,7 +229,7 @@ export default function MenuPage() {
 
             {categories.length === 0 && !categoriesLoading ? (
               <p className="text-sm text-gray-500">
-                No categories yet — add one above before you can add menu items.
+                No categories yet — add one above before you can add {itemLabelPluralLower}.
               </p>
             ) : (
               <div className="flex flex-wrap gap-2">
@@ -268,7 +276,7 @@ export default function MenuPage() {
             <div className="bg-white shadow rounded-lg p-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-medium text-gray-900">
-                  {editingItemId ? 'Edit Menu Item' : 'New Menu Item'}
+                  {editingItemId ? `Edit ${itemLabel}` : `New ${itemLabel}`}
                 </h3>
                 <button
                   onClick={() => {
@@ -410,11 +418,11 @@ export default function MenuPage() {
 
           {/* Items list */}
           <div className="bg-white shadow rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Menu Items</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">{itemLabelPlural}</h3>
             {isLoading ? (
-              <p className="text-sm text-gray-500">Loading menu...</p>
+              <p className="text-sm text-gray-500">Loading {itemLabelPluralLower}...</p>
             ) : items.length === 0 ? (
-              <p className="text-sm text-gray-500">No menu items yet.</p>
+              <p className="text-sm text-gray-500">No {itemLabelPluralLower} yet.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">

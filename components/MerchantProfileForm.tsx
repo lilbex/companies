@@ -8,6 +8,7 @@ import AddressInput, { AddressValue } from './AddressInput';
 
 interface Merchant {
   name?: string;
+  type?: 'restaurant' | 'store';
   description?: string;
   address?: string;
   location?: { latitude: number; longitude: number };
@@ -48,6 +49,7 @@ export default function MerchantProfileForm({ merchant, isEditing, onSaved }: Me
   const formik = useFormik({
     initialValues: {
       name: merchant?.name || '',
+      type: merchant?.type || 'restaurant',
       description: merchant?.description || '',
       address: merchant?.address || '',
       phone: merchant?.phone || '',
@@ -78,6 +80,7 @@ export default function MerchantProfileForm({ merchant, isEditing, onSaved }: Me
     if (merchant && !prefilled) {
       formik.setValues({
         name: merchant.name || '',
+        type: merchant.type || 'restaurant',
         description: merchant.description || '',
         address: merchant.address || '',
         phone: merchant.phone || '',
@@ -108,15 +111,42 @@ export default function MerchantProfileForm({ merchant, isEditing, onSaved }: Me
     <form className="space-y-6" onSubmit={formik.handleSubmit}>
       <div className="space-y-4">
         <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">What are you selling? *</label>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => formik.setFieldValue('type', 'restaurant')}
+              className={`rounded-lg border-2 px-4 py-3 text-left transition-colors ${
+                formik.values.type === 'restaurant' ? 'border-green-600 bg-green-50' : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <div className="text-2xl mb-1">🍽️</div>
+              <div className="text-sm font-semibold text-gray-900">Food</div>
+              <div className="text-xs text-gray-500">A restaurant menu customers order from</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => formik.setFieldValue('type', 'store')}
+              className={`rounded-lg border-2 px-4 py-3 text-left transition-colors ${
+                formik.values.type === 'store' ? 'border-green-600 bg-green-50' : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <div className="text-2xl mb-1">🛍️</div>
+              <div className="text-sm font-semibold text-gray-900">Other things</div>
+              <div className="text-xs text-gray-500">Electronics, phones, perfume, gadgets &amp; more</div>
+            </button>
+          </div>
+        </div>
+        <div>
           <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-            Restaurant Name *
+            {formik.values.type === 'store' ? 'Store Name *' : 'Restaurant Name *'}
           </label>
           <input
             id="name"
             type="text"
             required
             className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-            placeholder="Enter restaurant name"
+            placeholder={formik.values.type === 'store' ? 'Enter store name' : 'Enter restaurant name'}
             {...formik.getFieldProps('name')}
           />
           {formik.touched.name && formik.errors.name && (
@@ -131,14 +161,18 @@ export default function MerchantProfileForm({ merchant, isEditing, onSaved }: Me
             id="description"
             rows={3}
             className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-            placeholder="What kind of food do you serve?"
+            placeholder={formik.values.type === 'store' ? 'What do you sell?' : 'What kind of food do you serve?'}
             {...formik.getFieldProps('description')}
           />
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Address *</label>
-          <AddressInput value={addressValue} onChange={handleAddressChange} />
+          <AddressInput
+            value={addressValue}
+            onChange={handleAddressChange}
+            placeholder={formik.values.type === 'store' ? "Start typing your store's address..." : undefined}
+          />
           {formik.touched.address && formik.errors.address && !addressValue && (
             <div className="text-red-600 text-sm mt-1">{formik.errors.address}</div>
           )}
@@ -153,7 +187,7 @@ export default function MerchantProfileForm({ merchant, isEditing, onSaved }: Me
             id="phone"
             type="tel"
             className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-            placeholder="Enter restaurant phone"
+            placeholder={formik.values.type === 'store' ? 'Enter store phone' : 'Enter restaurant phone'}
             {...formik.getFieldProps('phone')}
           />
         </div>
@@ -165,7 +199,7 @@ export default function MerchantProfileForm({ merchant, isEditing, onSaved }: Me
             id="email"
             type="email"
             className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-            placeholder="Enter restaurant email"
+            placeholder={formik.values.type === 'store' ? 'Enter store email' : 'Enter restaurant email'}
             {...formik.getFieldProps('email')}
           />
           {formik.touched.email && formik.errors.email && (
@@ -204,7 +238,7 @@ export default function MerchantProfileForm({ merchant, isEditing, onSaved }: Me
       </div>
       {!isEditing && (
         <p className="text-xs text-center text-gray-400">
-          A CityWheels admin will need to approve your restaurant before it appears to customers.
+          A CityWheels admin will need to approve your {formik.values.type === 'store' ? 'store' : 'restaurant'} before it appears to customers.
         </p>
       )}
     </form>
