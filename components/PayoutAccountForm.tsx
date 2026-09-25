@@ -16,7 +16,7 @@ interface PayoutAccountFormProps {
 // what actually creates/updates the Paystack Subaccount their order
 // payouts split to.
 export default function PayoutAccountForm({ onSaved, onCancel }: PayoutAccountFormProps) {
-  const { data: banksData, isLoading: banksLoading } = usePayoutBanks();
+  const { data: banksData, isLoading: banksLoading, isError: banksError, error: banksErrorObj, refetch: refetchBanks, isRefetching: banksRefetching } = usePayoutBanks();
   const verifyMutation = useVerifyPayoutAccount();
   const saveMutation = useSetPayoutAccount();
 
@@ -62,16 +62,33 @@ export default function PayoutAccountForm({ onSaved, onCancel }: PayoutAccountFo
         <select
           value={bankCode}
           onChange={(e) => handleBankChange(e.target.value)}
-          disabled={banksLoading}
+          disabled={banksLoading || banksError}
           className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
         >
-          <option value="">{banksLoading ? 'Loading banks...' : 'Select your bank'}</option>
+          <option value="">
+            {banksLoading ? 'Loading banks...' : banksError ? 'Could not load banks' : 'Select your bank'}
+          </option>
           {banks.map((bank) => (
             <option key={bank.code} value={bank.code}>
               {bank.name}
             </option>
           ))}
         </select>
+        {banksError && (
+          <div className="mt-1 flex items-center justify-between gap-2">
+            <p className="text-red-600 text-sm">
+              {(banksErrorObj as any)?.message || 'Failed to load banks. Please try again.'}
+            </p>
+            <button
+              type="button"
+              onClick={() => refetchBanks()}
+              disabled={banksRefetching}
+              className="text-sm font-medium text-green-700 hover:text-green-800 whitespace-nowrap disabled:opacity-50"
+            >
+              {banksRefetching ? 'Retrying...' : 'Retry'}
+            </button>
+          </div>
+        )}
       </div>
 
       <div>
