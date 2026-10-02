@@ -3,13 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useFormik } from 'formik';
 import { merchantSetupSchema } from '@/lib/validations';
-import { useCreateMerchant, useUpdateMerchant } from '@/lib/hooks';
+import { useCreateMerchant, useUpdateMerchant, useUploadMerchantLogo } from '@/lib/hooks';
 import AddressInput, { AddressValue } from './AddressInput';
 
 interface Merchant {
   name?: string;
   type?: 'restaurant' | 'store';
   description?: string;
+  logoUrl?: string;
   address?: string;
   location?: { latitude: number; longitude: number };
   phone?: string;
@@ -40,11 +41,18 @@ interface MerchantProfileFormProps {
 export default function MerchantProfileForm({ merchant, isEditing, onSaved }: MerchantProfileFormProps) {
   const createMerchantMutation = useCreateMerchant();
   const updateMerchantMutation = useUpdateMerchant();
+  const uploadLogoMutation = useUploadMerchantLogo();
   const saveMutation = isEditing ? updateMerchantMutation : createMerchantMutation;
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(
     merchant?.location || null,
   );
   const [locationError, setLocationError] = useState('');
+  // Logo is its own multipart endpoint (see useUploadMerchantLogo), not a
+  // formik field -- uploaded as a second step after the rest of the
+  // profile saves, same two-step pattern the menu-item photo uses, so a
+  // failed image upload never loses the other field changes.
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(merchant?.logoUrl || null);
 
   const formik = useFormik({
     initialValues: {
@@ -66,6 +74,10 @@ export default function MerchantProfileForm({ merchant, isEditing, onSaved }: Me
       setLocationError('');
       try {
         await saveMutation.mutateAsync({ ...values, location });
+        if (logoFile) {
+          await uploadLogoMutation.mutateAsync(logoFile);
+          setLogoFile(null);
+        }
         onSaved();
       } catch (err: any) {
         // Error is handled by React Query
@@ -88,6 +100,7 @@ export default function MerchantProfileForm({ merchant, isEditing, onSaved }: Me
         openingHours: merchant.openingHours || '',
       });
       if (merchant.location) setLocation(merchant.location);
+      if (merchant.logoUrl) setLogoPreview(merchant.logoUrl);
       setPrefilled(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -110,6 +123,38 @@ export default function MerchantProfileForm({ merchant, isEditing, onSaved }: Me
   return (
     <form className="space-y-6" onSubmit={formik.handleSubmit}>
       <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            {formik.values.type === 'store' ? 'Store photo / logo' : 'Restaurant photo / logo'}
+          </label>
+          <div className="mt-1 flex items-center gap-4">
+            {logoPreview ? (
+              <img
+                src={logoPreview}
+                alt=""
+                className="w-16 h-16 rounded-lg object-cover border border-gray-200"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center text-2xl">
+                {formik.values.type === 'store' ? '🛍️' : '🍽️'}
+              </div>
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                setLogoFile(file);
+                setLogoPreview(file ? URL.createObjectURL(file) : merchant?.logoUrl || null);
+              }}
+              className="text-sm text-gray-600"
+            />
+          </div>
+          <p className="mt-1 text-xs text-gray-400">
+            This is what customers see next to your {formik.values.type === 'store' ? 'store' : 'restaurant'} when
+            browsing in the CityWheels app.
+          </p>
+        </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">What are you selling? *</label>
           <div className="grid grid-cols-2 gap-3">
@@ -220,8 +265,10 @@ export default function MerchantProfileForm({ merchant, isEditing, onSaved }: Me
         </div>
       </div>
 
-      {saveMutation.error && (
-        <div className="text-red-600 text-sm text-center">{(saveMutation.error as any).message}</div>
+      {(saveMutation.error || uploadLogoMutation.error) && (
+        <div className="text-red-600 text-sm text-center">
+          {(saveMutation.error as any)?.message || (uploadLogoMutation.error as any)?.message}
+        </div>
       )}
       {saveMutation.isSuccess && isEditing && (
         <div className="text-green-700 text-sm text-center">Saved.</div>
@@ -230,10 +277,12 @@ export default function MerchantProfileForm({ merchant, isEditing, onSaved }: Me
       <div>
         <button
           type="submit"
-          disabled={saveMutation.isPending}
+          disabled={saveMutation.isPending || uploadLogoMutation.isPending}
           className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
         >
-          {saveMutation.isPending ? (isEditing ? 'Saving…' : 'Creating Restaurant...') : isEditing ? 'Save Changes' : 'Complete Setup'}
+          {saveMutation.isPending || uploadLogoMutation.isPending
+            ? (isEditing ? 'Saving…' : 'Creating Restaurant...')
+            : isEditing ? 'Save Changes' : 'Complete Setup'}
         </button>
       </div>
       {!isEditing && (

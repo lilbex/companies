@@ -71,7 +71,11 @@ export default function MerchantOrderDetailPage() {
     );
   }
 
-  const total = (order.itemsSubtotal || 0) + (order.deliveryFee || 0);
+  // Products only -- the delivery fee is City Wheels'/the rider's, not the
+  // business's. merchantPayout is what settles to their bank account.
+  const itemsTotal = order.itemsSubtotal || 0;
+  const payout = order.merchantPayout ?? itemsTotal;
+  const commission = order.merchantCommission ?? Math.max(0, itemsTotal - payout);
 
   const handleReject = async () => {
     setActionError('');
@@ -266,16 +270,16 @@ export default function MerchantOrderDetailPage() {
             </div>
             <div className="border-t border-gray-200 mt-3 pt-3 space-y-1">
               <div className="flex justify-between text-sm text-gray-600">
-                <span>Subtotal</span>
-                <span>₦{(order.itemsSubtotal || 0).toLocaleString()}</span>
+                <span>Items total</span>
+                <span>₦{itemsTotal.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-sm text-gray-600">
-                <span>Delivery Fee</span>
-                <span>₦{(order.deliveryFee || 0).toLocaleString()}</span>
+                <span>City Wheels fee{order.merchantCommissionPercent != null ? ` (${order.merchantCommissionPercent}%)` : ''}</span>
+                <span>−₦{commission.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-sm font-semibold text-gray-900">
-                <span>Total Paid</span>
-                <span>₦{total.toLocaleString()}</span>
+                <span>You receive</span>
+                <span>₦{payout.toLocaleString()}</span>
               </div>
             </div>
             {order.specialInstructions && (

@@ -331,6 +331,12 @@ class ApiClient {
     return this.post(`/merchants/menu/items/${itemId}/image`, formData);
   }
 
+  async uploadMerchantLogo(file: File) {
+    const formData = new FormData();
+    formData.append('image', file);
+    return this.post('/merchants/profile/logo', formData);
+  }
+
   async deleteMenuItem(itemId: string) {
     return this.client.delete(`/merchants/menu/items/${itemId}`) as unknown as any;
   }

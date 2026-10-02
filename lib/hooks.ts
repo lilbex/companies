@@ -371,6 +371,16 @@ export const useUpdateMerchant = () => {
   });
 };
 
+export const useUploadMerchantLogo = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => api.uploadMerchantLogo(file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['merchant'] });
+    },
+  });
+};
+
 export const useMerchantWallet = () => {
   return useQuery({
     queryKey: ['merchant', 'wallet'],

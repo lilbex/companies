@@ -81,7 +81,7 @@ export default function MerchantOrdersPage() {
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items total</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Placed</th>
                       </tr>
@@ -89,7 +89,10 @@ export default function MerchantOrdersPage() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {list.map((order: any) => {
                         const id = order.id || order._id;
-                        const total = (order.itemsSubtotal || 0) + (order.deliveryFee || 0);
+                        // A business only ever sees its own products -- the delivery
+                        // fee belongs to City Wheels/the rider (the API no longer
+                        // even returns it here).
+                        const total = order.itemsSubtotal || 0;
                         return (
                           <tr
                             key={id}
