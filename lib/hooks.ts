@@ -452,6 +452,7 @@ export const useCreateMenuItem = () => {
       price: number;
       imageUrl?: string;
       isAvailable?: boolean;
+      stockQuantity?: number;
     }) => api.createMenuItem(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['merchant', 'menu', 'items'] });
@@ -511,6 +512,16 @@ export const useAcceptMerchantOrder = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (orderId: string) => api.acceptMerchantOrder(orderId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['merchant', 'orders'] });
+    },
+  });
+};
+
+export const useMarkOrderPreparing = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) => api.markOrderPreparing(orderId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['merchant', 'orders'] });
     },

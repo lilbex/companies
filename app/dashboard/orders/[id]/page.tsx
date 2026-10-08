@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import {
   useMerchantOrder,
+  useMarkOrderPreparing,
   useRejectMerchantOrder,
   useOrderRiders,
   useSendOrderToRider,
@@ -41,6 +42,7 @@ export default function MerchantOrderDetailPage() {
   const router = useRouter();
   const orderId = params?.id as string;
   const { data: order, isLoading } = useMerchantOrder(orderId);
+  const markPreparing = useMarkOrderPreparing();
   const rejectOrder = useRejectMerchantOrder();
   const sendToRider = useSendOrderToRider();
 
@@ -84,6 +86,15 @@ export default function MerchantOrderDetailPage() {
       setShowRejectForm(false);
     } catch (err: any) {
       setActionError(err?.message || 'Could not cancel this order.');
+    }
+  };
+
+  const handleMarkPreparing = async () => {
+    setActionError('');
+    try {
+      await markPreparing.mutateAsync(orderId);
+    } catch (err: any) {
+      setActionError(err?.message || 'Could not update this order.');
     }
   };
 
@@ -165,6 +176,21 @@ export default function MerchantOrderDetailPage() {
                   Never mind
                 </button>
               </div>
+            </div>
+          )}
+
+          {order.status === 'accepted' && !showRiderPicker && (
+            <div className="bg-white shadow rounded-lg p-6 flex flex-wrap gap-3 items-center">
+              <p className="text-sm text-gray-600 mr-auto">
+                Let the customer know you've started on their order — their status screen will update from "Order accepted" to "Preparing your order".
+              </p>
+              <button
+                onClick={handleMarkPreparing}
+                disabled={markPreparing.isPending}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+              >
+                {markPreparing.isPending ? 'Updating...' : 'Start preparing'}
+              </button>
             </div>
           )}
 
@@ -273,10 +299,14 @@ export default function MerchantOrderDetailPage() {
                 <span>Items total</span>
                 <span>₦{itemsTotal.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>City Wheels fee{order.merchantCommissionPercent != null ? ` (${order.merchantCommissionPercent}%)` : ''}</span>
-                <span>−₦{commission.toLocaleString()}</span>
-              </div>
+              {commission > 0 ? (
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>City Wheels fee{order.merchantCommissionPercent != null ? ` (${order.merchantCommissionPercent}%)` : ''}</span>
+                  <span>−₦{commission.toLocaleString()}</span>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 py-1">No commission — City Wheels&apos; fee is paid by the customer, not you.</p>
+              )}
               <div className="flex justify-between text-sm font-semibold text-gray-900">
                 <span>You receive</span>
                 <span>₦{payout.toLocaleString()}</span>

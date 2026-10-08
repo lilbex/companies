@@ -317,6 +317,7 @@ class ApiClient {
     price: number;
     imageUrl?: string;
     isAvailable?: boolean;
+    stockQuantity?: number;
   }) {
     return this.post('/merchants/menu/items', data);
   }
@@ -353,6 +354,11 @@ class ApiClient {
 
   async acceptMerchantOrder(orderId: string) {
     return this.patch(`/merchant-orders/${orderId}/accept`);
+  }
+
+  /** Lets the customer's status screen move from "Order accepted" to "Preparing your order" -- purely a communication step, not required before sendOrderToRider (which accepts either status). */
+  async markOrderPreparing(orderId: string) {
+    return this.patch(`/merchant-orders/${orderId}/preparing`);
   }
 
   async rejectMerchantOrder(orderId: string, reason?: string) {

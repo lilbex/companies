@@ -61,6 +61,36 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [openOverride, setOpenOverride] = useState<boolean | null>(null);
   const [openStatusError, setOpenStatusError] = useState('');
   const isOpenNow = openOverride ?? merchant?.isOpenNow ?? true;
+  // Mirrors MerchantsService.getCapability's status derivation server-side
+  // (merchant.isApproved / isActive / rejectionReason) -- there's no
+  // separate "capability" endpoint on the web portal, but GET /merchants/profile
+  // already returns these same fields, so no new API call is needed.
+  const approvalStatus: 'approved' | 'suspended' | 'rejected' | 'pending_review' | null = !merchant
+    ? null
+    : merchant.isApproved && merchant.isActive
+      ? 'approved'
+      : merchant.isApproved && !merchant.isActive
+        ? 'suspended'
+        : merchant.rejectionReason
+          ? 'rejected'
+          : 'pending_review';
+  const APPROVAL_STATUS_COPY: Record<string, { label: string; detail: string; className: string }> = {
+    pending_review: {
+      label: 'Under review',
+      detail: 'City Wheels is reviewing your storefront before it becomes visible to customers.',
+      className: 'bg-amber-50 border-amber-200 text-amber-800',
+    },
+    rejected: {
+      label: 'Needs attention',
+      detail: 'Update your profile and contact support about the review decision.',
+      className: 'bg-red-50 border-red-200 text-red-800',
+    },
+    suspended: {
+      label: 'Paused by City Wheels',
+      detail: 'Your storefront is hidden from customers. Contact support for next steps.',
+      className: 'bg-red-50 border-red-200 text-red-800',
+    },
+  };
   const handleToggleOpen = () => {
     const next = !isOpenNow;
     setOpenOverride(next);
@@ -96,6 +126,29 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [managerData, role, pathname, router]);
 
+  // iOS Safari resizes the *visual* viewport (not the layout viewport) when
+  // the on-screen keyboard opens, so a focused field inside one of this
+  // layout's nested `overflow-auto` scroll regions (every dashboard page
+  // wraps its content that way) gets no native scroll-into-view rescue --
+  // it just sits wherever it was, now hidden behind the keyboard. This is
+  // the fix for the "keyboard covers the input" reports (price, business
+  // info, category).
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+    const vv = window.visualViewport;
+    const scrollActiveFieldIntoView = () => {
+      const active = document.activeElement as HTMLElement | null;
+      if (!active) return;
+      if (!['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName)) return;
+      // Give the keyboard animation a beat to finish before measuring/scrolling.
+      setTimeout(() => {
+        active.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }, 50);
+    };
+    vv.addEventListener('resize', scrollActiveFieldIntoView);
+    return () => vv.removeEventListener('resize', scrollActiveFieldIntoView);
+  }, []);
+
   const handleLogout = () => {
     api.clearToken();
     localStorage.removeItem('managerData');
@@ -105,7 +158,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigation = role === 'merchant' ? merchantNavigation : managerNavigation;
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-dvh bg-gray-100">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
@@ -205,6 +258,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </div>
         </div>
+
+        {/* Approval status -- merchants only, and only when there's something
+            to say (hidden once approved, same as the payout/order-alert bars
+            below). Without this a pending/rejected/suspended merchant just
+            saw an empty Orders page with no explanation anywhere in the web
+            portal, unlike BusinessHubScreen in the app. */}
+        {role === 'merchant' && approvalStatus && approvalStatus !== 'approved' && (
+          <div className={`px-4 py-2.5 border-b ${APPROVAL_STATUS_COPY[approvalStatus].className}`}>
+            <p className="text-sm font-medium">{APPROVAL_STATUS_COPY[approvalStatus].label}</p>
+            <p className="text-xs mt-0.5">
+              {APPROVAL_STATUS_COPY[approvalStatus].detail}
+              {approvalStatus === 'rejected' && merchant?.rejectionReason && (
+                <> Reason: {merchant.rejectionReason}</>
+              )}
+            </p>
+          </div>
+        )}
 
         {/* Open/closed status -- merchants only. The merchant's own day-to-day
             switch (Merchant.isOpenNow), separate from admin approval --

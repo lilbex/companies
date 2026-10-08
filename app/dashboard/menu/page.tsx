@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import {
   useMerchant,
@@ -31,6 +31,10 @@ interface MenuItem {
   price: number;
   imageUrl?: string;
   isAvailable?: boolean;
+  // Units currently available for sale -- undefined means this item has
+  // never had an opening stock count set and isn't tracked (see backend
+  // MenuItem.stockQuantity), not that there are zero.
+  stockQuantity?: number;
 }
 
 const itemKey = (x: MenuCategory | MenuItem) => (x.id || x._id) as string;
@@ -42,6 +46,7 @@ const emptyItemForm = {
   price: '',
   imageUrl: '',
   isAvailable: true,
+  stock: '',
 };
 
 export default function MenuPage() {
@@ -65,6 +70,7 @@ export default function MenuPage() {
   const items: MenuItem[] = itemsData || [];
 
   const [newCategoryName, setNewCategoryName] = useState('');
+  const newCategoryInputRef = useRef<HTMLInputElement>(null);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editingCategoryName, setEditingCategoryName] = useState('');
 
@@ -81,6 +87,7 @@ export default function MenuPage() {
     if (!newCategoryName.trim()) return;
     await createCategory.mutateAsync({ name: newCategoryName.trim() });
     setNewCategoryName('');
+    newCategoryInputRef.current?.blur();
   };
 
   const startEditCategory = (category: MenuCategory) => {
@@ -120,6 +127,7 @@ export default function MenuPage() {
       price: String(item.price ?? ''),
       imageUrl: item.imageUrl || '',
       isAvailable: item.isAvailable !== false,
+      stock: item.stockQuantity === undefined ? '' : String(item.stockQuantity),
     });
     setImageFile(null);
     setImagePreview(item.imageUrl || null);
@@ -142,6 +150,16 @@ export default function MenuPage() {
       setItemFormError('Enter a valid price.');
       return;
     }
+    // Blank means "don't track stock for this item" (undefined), same as
+    // an older listing that's never had an opening count set -- never 0.
+    let stockQuantity: number | undefined;
+    if (itemForm.stock.trim() !== '') {
+      stockQuantity = Number(itemForm.stock);
+      if (!Number.isInteger(stockQuantity) || stockQuantity < 0) {
+        setItemFormError('Stock must be a whole number of zero or more, or left blank.');
+        return;
+      }
+    }
     const payload = {
       categoryId: itemForm.categoryId,
       name: itemForm.name.trim(),
@@ -149,6 +167,7 @@ export default function MenuPage() {
       price,
       imageUrl: itemForm.imageUrl.trim() || undefined,
       isAvailable: itemForm.isAvailable,
+      stockQuantity,
     };
     try {
       let itemId = editingItemId;
@@ -212,6 +231,7 @@ export default function MenuPage() {
             <h3 className="text-lg font-medium text-gray-900 mb-4">Categories</h3>
             <form onSubmit={handleAddCategory} className="flex gap-2 mb-4">
               <input
+                ref={newCategoryInputRef}
                 type="text"
                 value={newCategoryName}
                 onChange={(e) => setNewCategoryName(e.target.value)}
@@ -315,6 +335,21 @@ export default function MenuPage() {
                       className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                     />
                   </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Stock quantity</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={itemForm.stock}
+                    onChange={(e) => setItemForm({ ...itemForm, stock: e.target.value })}
+                    placeholder="Leave blank to not track stock"
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  />
+                  <p className="mt-1 text-xs text-gray-400">
+                    Set this to track units left and auto-mark out of stock at zero. Leave blank for unlimited.
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Item Name *</label>
@@ -432,6 +467,7 @@ export default function MenuPage() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
@@ -454,6 +490,15 @@ export default function MenuPage() {
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">{categoryName(item.categoryId)}</td>
                         <td className="px-4 py-3 text-sm font-medium text-gray-900">₦{item.price?.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-sm">
+                          {item.stockQuantity === undefined ? (
+                            <span className="text-gray-400">Not tracked</span>
+                          ) : item.stockQuantity <= 0 ? (
+                            <span className="text-red-600 font-medium">Out of stock</span>
+                          ) : (
+                            <span className="text-gray-600">{item.stockQuantity} in stock</span>
+                          )}
+                        </td>
                         <td className="px-4 py-3">
                           <button
                             onClick={() => toggleAvailability(item)}

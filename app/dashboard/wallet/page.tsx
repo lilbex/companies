@@ -69,6 +69,8 @@ export default function MerchantWalletPage() {
             <h3 className="text-lg font-medium text-gray-900 mb-1">Payout Account</h3>
             <p className="text-sm text-gray-500 mb-4">
               Your share of every paid order is sent directly here — no manual withdrawal needed.
+              Paystack settles payouts to your bank on the next business day (orders placed
+              Friday through Sunday settle the following Monday).
             </p>
 
             {hasPayoutAccount && !editingPayout ? (
