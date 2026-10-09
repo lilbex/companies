@@ -39,8 +39,8 @@ export const merchantSetupSchema = yup.object({
   name: yup.string().required('Restaurant name is required').min(2, 'Restaurant name must be at least 2 characters'),
   description: yup.string(),
   address: yup.string().required('Address is required').min(10, 'Please provide a complete address'),
-  phone: yup.string(),
-  email: yup.string().email('Invalid email format'),
+  phone: yup.string().required('Phone number is required').min(10, 'Phone number must be at least 10 digits'),
+  email: yup.string().email('Invalid email format').required('Email is required'),
   openingHours: yup.string(),
 });
 

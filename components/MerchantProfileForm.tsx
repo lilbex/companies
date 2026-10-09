@@ -125,7 +125,7 @@ export default function MerchantProfileForm({ merchant, isEditing, onSaved }: Me
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700">
-            {formik.values.type === 'store' ? 'Store photo / logo' : 'Restaurant photo / logo'}
+            Featured photo
           </label>
           <div className="mt-1 flex items-center gap-4">
             {logoPreview ? (
@@ -151,8 +151,8 @@ export default function MerchantProfileForm({ merchant, isEditing, onSaved }: Me
             />
           </div>
           <p className="mt-1 text-xs text-gray-400">
-            This is what customers see next to your {formik.values.type === 'store' ? 'store' : 'restaurant'} when
-            browsing in the CityWheels app.
+            Shown as the large cover photo on your listing card when customers browse the CityWheels app --
+            a clear, well-lit photo of a sample {formik.values.type === 'store' ? 'product' : 'dish'} works best here.
           </p>
         </div>
         <div>
@@ -226,24 +226,31 @@ export default function MerchantProfileForm({ merchant, isEditing, onSaved }: Me
 
         <div>
           <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-            Phone
+            Phone <span className="text-red-500">*</span>
           </label>
           <input
             id="phone"
             type="tel"
-            className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+            className={`mt-1 appearance-none relative block w-full px-3 py-2 border placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 ${
+              formik.touched.phone && formik.errors.phone ? 'border-red-300' : 'border-gray-300'
+            }`}
             placeholder={formik.values.type === 'store' ? 'Enter store phone' : 'Enter restaurant phone'}
             {...formik.getFieldProps('phone')}
           />
+          {formik.touched.phone && formik.errors.phone && (
+            <div className="text-red-600 text-sm mt-1">{formik.errors.phone}</div>
+          )}
         </div>
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-            Email
+            Email <span className="text-red-500">*</span>
           </label>
           <input
             id="email"
             type="email"
-            className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+            className={`mt-1 appearance-none relative block w-full px-3 py-2 border placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 ${
+              formik.touched.email && formik.errors.email ? 'border-red-300' : 'border-gray-300'
+            }`}
             placeholder={formik.values.type === 'store' ? 'Enter store email' : 'Enter restaurant email'}
             {...formik.getFieldProps('email')}
           />
